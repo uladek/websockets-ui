@@ -4,23 +4,39 @@ import { WebSocket } from 'ws';
 export interface RegistrationData {
     name: string;
     error: boolean;
-    errorText: string;
+    index: string;
+    errorText?: string;
     data: string;
 }
 
 export interface AddUserToRoomMessage {
     type: string;
     data: {
-        indexRoom: number;
+        indexRoom: string;
     };
     id: number;
 }
 
 
+// export interface Room {
+//     roomId: number;
+//     roomUsers: { ws: WebSocket }[];
+// }
+
+
 export interface Room {
-    roomId: number;
-    roomUsers: { ws: WebSocket }[];
+    id: string;
+    players: Player[];
 }
+
+export interface Player {
+    name: string;
+    index: string;
+}
+
+
+
+
 
 export interface CreateGameMessage {
     type: string;
