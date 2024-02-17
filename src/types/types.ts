@@ -18,22 +18,12 @@ export interface AddUserToRoomMessage {
 }
 
 
-// export interface Room {
-//     roomId: number;
-//     roomUsers: { ws: WebSocket }[];
-// }
-
+export type Player = string;
 
 export interface Room {
     id: string;
     players: Player[];
 }
-
-export interface Player {
-    name: string;
-    index: string;
-}
-
 
 
 

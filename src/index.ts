@@ -9,9 +9,10 @@ const HTTP_PORT = 8181;
 console.log(`Start static http server on the ${HTTP_PORT} port!`);
 httpServer.listen(HTTP_PORT);
 
+let registeredPlayerId: string;
 
 const wss = new WebSocketServer({ port: 3000 });
-//
+
 // const players = [];
 // const players: { [key: string]: string } = {};
 
@@ -28,9 +29,8 @@ wss.on('connection', function connection(ws) {
             registerPlayer(ws, data);
 
             } else if (data.type === 'create_room') {
-                const roomId = createRoom();
-                // const roomId = createRoom(ws, data);
-
+                // const roomId = createRoom(ws,  playerId);
+                const roomId = createRoom(ws, registeredPlayerId);
 
                 if (roomId !== undefined) {
                     // addPlayerToRoom(ws, roomId);
@@ -46,14 +46,14 @@ wss.on('connection', function connection(ws) {
 
 
 
-function registerPlayer(ws: WebSocket, data: RegistrationData): void {
+function registerPlayer(ws: WebSocket, data: RegistrationData): void{
     console.log('Received nestedData:', data);
     const playerName = data.name;
     const playerId = randomUUID();
 
+    registeredPlayerId = playerId;
 
     // players[playerId] = playerName;
-
     const responseData = {
         name: playerName,
         index: playerId,
@@ -70,48 +70,24 @@ function registerPlayer(ws: WebSocket, data: RegistrationData): void {
     ws.send(JSON.stringify(registrationResponse));
     console.log('RegistrationResponse:', registrationResponse);
 
-    // players.push({ name: playerName, index: playerId });
 }
 
-// function createRoom(ws: WebSocket, registrationData: RegistrationData): string | undefined {
-    function createRoom(): string | undefined {
+function createRoom(ws: WebSocket, playerId: string): string | undefined {
 
-
-    const roomId = randomUUID();
+   const roomId = randomUUID();
 
     const newRoom = {
         id: roomId,
-        players: []
-        // players: [{ name: registrationData.name, index: registrationData.index }]
+        players: [playerId]
 
     };
     rooms.push(newRoom);
 
-    // addPlayerToRoom(ws, roomId);
-
-
 
     updateRoomState();
-
     return roomId;
 }
 
-
-// async function addPlayerToRoom(ws: WebSocket, roomId: string): Promise<void> {
-//     try {
-//         const playerName = await getPlayerName(ws);
-//         const playerId = await getPlayerId(ws);
-
-//         const room = rooms.find(room => room.id === roomId);
-//         if (room) {
-//             room.players.push({ name: playerName, index: playerId });
-
-//             updateRoomState();
-//         }
-//     } catch (error) {
-//         console.error('Error adding player to room:', error);
-//     }
-// }
 
 
 function updateRoomState(): void {
@@ -133,40 +109,5 @@ function updateRoomState(): void {
         }
     });
 }
-
-
-// function getPlayerName(ws: WebSocket): Promise<string> {
-//     return new Promise((resolve, reject) => {
-//         ws.once('message', (message: string) => {
-//             try {
-//                 const data = JSON.parse(message);
-//                 if (data.type === 'reg') {
-//                     resolve(data.name);
-//                 } else {
-//                     reject(new Error('Invalid registration message type'));
-//                 }
-//             } catch (error) {
-//                 reject(error);
-//             }
-//         });
-//     });
-// }
-
-// function getPlayerId(ws: WebSocket): Promise<string> {
-//     return new Promise((resolve, reject) => {
-//         ws.once('message', (message: string) => {
-//             try {
-//                 const data = JSON.parse(message);
-//                 if (data.type === 'reg') {
-//                     resolve(data.index);
-//                 } else {
-//                     reject(new Error('Invalid registration message type'));
-//                 }
-//             } catch (error) {
-//                 reject(error);
-//             }
-//         });
-//     });
-// }
 
 /////
