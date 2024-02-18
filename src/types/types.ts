@@ -20,19 +20,28 @@ export interface AddUserToRoomMessage {
 
 export type Player = string;
 
+
+// export interface Room {
+//     id: string;
+//     players: Player[];
+// }
+
 export interface Room {
     id: string;
-    players: Player[];
+    players: string[];
+    creatorName: string;
+}
+
+export interface CustomWebSocket extends WebSocket {
+    playerId?: string;
 }
 
 
-
-
-export interface CreateGameMessage {
-    type: string;
-    data: {
-        idGame: number;
-        idPlayer: number;
-    };
-    id: number;
-}
+// export interface CreateGameMessage {
+//     type: string;
+//     data: {
+//         idGame: number;
+//         idPlayer: number;
+//     };
+//     id: number;
+// }
