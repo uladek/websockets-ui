@@ -1,7 +1,7 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import { httpServer } from './http_server/index';
-import {  RegistrationData, Room } from './types/types';
+import { RegistrationData, Room } from './types/types';
 import { randomUUID } from 'crypto';
 
 const HTTP_PORT = 8181;
@@ -11,6 +11,12 @@ httpServer.listen(HTTP_PORT);
 
 let registeredPlayerId: string;
 
+export interface CustomWebSocket extends WebSocket {
+    playerId?: string;
+}
+
+// const wss = new WebSocketServer({ port: 3000 }) as WebSocketServer & { clients: Set<CustomWebSocket> };
+
 const wss = new WebSocketServer({ port: 3000 });
 
 // const players = [];
@@ -19,6 +25,8 @@ const wss = new WebSocketServer({ port: 3000 });
 const rooms: Room[] = [];
 
 wss.on('connection', function connection(ws) {
+// wss.on('connection', function connection(ws: CustomWebSocket) {
+
     ws.on('message', function incoming(message) {
         const messageString = message.toString();
         console.log('Received:', messageString);
@@ -26,23 +34,23 @@ wss.on('connection', function connection(ws) {
         try {
             const data = JSON.parse(messageString);
             if (data.type === 'reg') {
-            registerPlayer(ws, data);
-
+                registerPlayer(ws, data);
             } else if (data.type === 'create_room') {
-                // const roomId = createRoom(ws,  playerId);
-                const roomId = createRoom(ws, registeredPlayerId);
+                 createRoom(ws, registeredPlayerId);
 
-                if (roomId !== undefined) {
-                    // addPlayerToRoom(ws, roomId);
-                }
+                // const roomId = createRoom(ws, registeredPlayerId);
+                // if (roomId !== undefined) {
+                //     // addPlayerToRoom(ws, roomId);
+                // }
             } else if (data.type === 'add_user_to_room') {
-            console.log('data.type:', data.type)
+                addUserToRoom(ws, data);
             }
         } catch (error) {
             console.error('Error parsing JSON:', error);
         }
     });
 });
+
 
 
 
@@ -69,6 +77,7 @@ function registerPlayer(ws: WebSocket, data: RegistrationData): void{
     };
     ws.send(JSON.stringify(registrationResponse));
     console.log('RegistrationResponse:', registrationResponse);
+    updateRoomState()
 
 }
 
@@ -79,10 +88,8 @@ function createRoom(ws: WebSocket, playerId: string): string | undefined {
     const newRoom = {
         id: roomId,
         players: [playerId]
-
     };
     rooms.push(newRoom);
-
 
     updateRoomState();
     return roomId;
@@ -110,4 +117,16 @@ function updateRoomState(): void {
     });
 }
 
-/////
+function addUserToRoom(ws: WebSocket, data: { type: string, data: { indexRoom: number }, id: number }) {
+    const roomIndex = data.data.indexRoom;
+    const room = rooms[roomIndex];
+
+    if (room) {
+        // ?? надо ли
+        room.players.push(registeredPlayerId);
+
+        //  createGame(ws, room);
+
+        updateRoomState();
+    }
+}
