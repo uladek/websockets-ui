@@ -1,7 +1,7 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import { httpServer } from './http_server/index';
-import { CustomWebSocket, RegistrationData, Room } from './types/types';
+import { AddUserToRoomMessage, CustomWebSocket, RegistrationData, Room } from './types/types';
 import { randomUUID } from 'crypto';
 
 const HTTP_PORT = 8181;
@@ -12,8 +12,6 @@ httpServer.listen(HTTP_PORT);
 let registeredPlayerId: string;
 let registeredName: string;
 let currentRoomId: string | undefined;
-
-
 
 const wss = new WebSocketServer({ port: 3000 }) as WebSocketServer & { clients: Set<CustomWebSocket> };
 
@@ -36,6 +34,8 @@ wss.on('connection', function connection(ws) {
                 registerPlayer(ws, data);
             } else if (data.type === 'create_room') {
                  createRoom(ws, registeredPlayerId);
+            } else if (data.type === 'add_user_to_room') {
+                addUserToRoom(ws, data);
             }
         } catch (error) {
             console.error('Error parsing JSON:', error);
@@ -70,23 +70,9 @@ function registerPlayer(ws: WebSocket, data: RegistrationData): void{
     };
     ws.send(JSON.stringify(registrationResponse));
     console.log('RegistrationResponse:', registrationResponse);
-    // updateRoomState()
     updateRoomState(playerName);
 }
 
-// function createRoom(ws: WebSocket, playerId: string): string | undefined {
-
-//    currentRoomId = randomUUID()
-//     const newRoom = {
-//         id: currentRoomId,
-//         players: [playerId]
-//     };
-//     rooms.push(newRoom);
-//     console.log("newRoom", newRoom)
-//     updateRoomState();
-
-//     return currentRoomId;
-// }
 
 function createRoom(ws: WebSocket, playerId: string): string | undefined {
     currentRoomId = randomUUID();
@@ -127,4 +113,74 @@ function updateRoomState(creatorName: string): void {
             client.send(JSON.stringify(updateRoomMessage));
         }
     });
+}
+
+
+
+// function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
+function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
+
+    console.log("data:", data)
+
+    const indexRoom= JSON.parse(data.data).indexRoom;
+
+    // Находим комнату по идентификатору
+    const room = rooms.find(room => room.id === indexRoom);
+
+    if (room) {
+
+        if (room.players.includes(registeredPlayerId)) {
+            console.log('User is already in the room');
+            return;
+        }
+
+        room.players.push(registeredPlayerId);
+
+        const gameId = randomUUID();
+
+        const createGameMessage = {
+            type: "create_game",
+            data: JSON.stringify({
+                idGame: gameId,
+                idPlayer: registeredPlayerId
+            }),
+            id: 0
+        };
+
+
+        // room.players.forEach(playerId => {
+            console.log(" room.players: ",  room.players)
+            // console.log(" playerId : ",  playerId )
+
+            wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify(createGameMessage));
+                }
+            });
+
+            // ws.send(JSON.stringify(createGameMessage));
+            // console.log('Create game message sent:', createGameMessage);
+
+            // wss.clients.forEach(client => {
+            //     if (client.readyState === WebSocket.OPEN && (client as CustomWebSocket).playerId !== playerId) {
+            //         client.send(JSON.stringify(createGameMessage));
+            //     }
+            // });
+
+            // wss.clients.forEach(client => {
+            //     if (client.readyState === WebSocket.OPEN && (client as CustomWebSocket).playerId === playerId) {
+            //         client.send(JSON.stringify(createGameMessage));
+            //     }
+            // });
+        // });
+
+
+        const roomIndex = rooms.indexOf(room);
+        rooms.splice(roomIndex, 1);
+        updateRoomState(registeredName);
+
+
+    } else {
+        console.error('Room not found');
+    }
 }
