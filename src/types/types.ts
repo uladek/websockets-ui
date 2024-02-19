@@ -9,13 +9,6 @@ export interface RegistrationData {
     data: string;
 }
 
-// export interface AddUserToRoomMessage {
-//     type: string;
-//     data: {
-//         indexRoom: string;
-//     };
-//     id: number;
-// }
 export interface AddUserToRoomMessage {
     type: "add_user_to_room";
     data: string;
@@ -24,8 +17,6 @@ export interface AddUserToRoomMessage {
 
 
 export type Player = string;
-
-
 
 export interface Room {
     id: string;
@@ -37,15 +28,18 @@ export interface CustomWebSocket extends WebSocket {
     playerId?: string;
 }
 
-// export type CustomWebSocketClient = WebSocket & { playerId?: string };
+export interface AddShipsMessage {
+    type: "add_ships";
+    data: string;
+    id: number;
+}
 
-
-
-// export interface CreateGameMessage {
-//     type: string;
-//     data: {
-//         idGame: number;
-//         idPlayer: number;
-//     };
-//     id: number;
-// }
+export interface Ship {
+    position: {
+        x: number;
+        y: number;
+    };
+    direction: boolean;
+    length: number;
+    type: "small" | "medium" | "large" | "huge";
+}

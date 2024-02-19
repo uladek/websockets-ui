@@ -1,7 +1,7 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import { httpServer } from './http_server/index';
-import { AddUserToRoomMessage, CustomWebSocket, RegistrationData, Room } from './types/types';
+import { AddShipsMessage, AddUserToRoomMessage, CustomWebSocket, RegistrationData, Room, Ship } from './types/types';
 import { randomUUID } from 'crypto';
 
 const HTTP_PORT = 8181;
@@ -24,27 +24,54 @@ const wss = new WebSocketServer({ port: 3000 }) as WebSocketServer & { clients: 
 
 const rooms: Room[] = [];
 
-wss.on('connection', function connection(ws) {
-// wss.on('connection', function connection(ws: CustomWebSocket) {
+// wss.on('connection', function connection(ws) {
+// // wss.on('connection', function connection(ws: CustomWebSocket) {
 
+//     ws.on('message', function incoming(message) {
+//         const messageString = message.toString();
+//         console.log('Received:', messageString);
+
+//         try {
+//             const data = JSON.parse(messageString);
+//             if (data.type === 'reg') {
+//                 registerPlayer(ws, data);
+//             } else if (data.type === 'create_room') {
+//                  createRoom(ws, registeredPlayerId);
+//             } else if (data.type === 'add_user_to_room') {
+//                 addUserToRoom(ws, data);
+//             } else if (data.type === 'add_ships') {
+//                 addShips(ws, data);
+//             }
+//         } catch (error) {
+//             console.error('Error parsing JSON:', error);
+//         }
+//     });
+// });
+
+wss.on('connection', function connection(ws) {
     ws.on('message', function incoming(message) {
         const messageString = message.toString();
         console.log('Received:', messageString);
-
-        try {
-            const data = JSON.parse(messageString);
-            if (data.type === 'reg') {
-                registerPlayer(ws, data);
-            } else if (data.type === 'create_room') {
-                 createRoom(ws, registeredPlayerId);
-            } else if (data.type === 'add_user_to_room') {
-                addUserToRoom(ws, data);
-            }
-        } catch (error) {
-            console.error('Error parsing JSON:', error);
-        }
+        handleMessage(ws, messageString);
     });
 });
+
+function handleMessage(ws: WebSocket, message: string): void {
+    try {
+        const data = JSON.parse(message);
+        if (data.type === 'reg') {
+            registerPlayer(ws, data);
+        } else if (data.type === 'create_room') {
+            createRoom(ws, registeredPlayerId);
+        } else if (data.type === 'add_user_to_room') {
+            addUserToRoom(ws, data);
+        } else if (data.type === 'add_ships') {
+            addShips(ws, data);
+        }
+    } catch (error) {
+        console.error('Error parsing JSON:', error);
+    }
+}
 
 
 
@@ -217,4 +244,39 @@ function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
     } else {
         console.error('Room not found');
     }
+}
+
+
+
+
+function addShips(ws: WebSocket, data: AddShipsMessage): void {
+    console.log("data:", data )
+    const { ships, indexPlayer } = JSON.parse(data.data);
+    // const ships = JSON.parse(data.data).ships;
+
+    console.log("ships:", ships)
+
+
+    if (!ships || !Array.isArray(ships) || ships.length === 0) {
+        console.error('No ships data received');
+        return;
+    }
+
+    const gameShips = ships.map((ship: Ship) => ({
+        position: { x: ship.position.x, y: ship.position.y },
+        direction: ship.direction,
+        length: ship.length,
+        type: ship.type
+    }));
+
+    const startGameMessage = {
+        type: "start_game",
+        data: JSON.stringify({
+            ships: gameShips,
+            currentPlayerIndex: indexPlayer
+        }),
+        id: 0
+    };
+
+    ws.send(JSON.stringify(startGameMessage));
 }
