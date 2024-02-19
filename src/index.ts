@@ -12,12 +12,15 @@ httpServer.listen(HTTP_PORT);
 let registeredPlayerId: string;
 let registeredName: string;
 let currentRoomId: string | undefined;
+const players: { [key: string]: { id: string, name: string, password: string } } = {};
+
 
 const wss = new WebSocketServer({ port: 3000 }) as WebSocketServer & { clients: Set<CustomWebSocket> };
 
 // const wss = new WebSocketServer({ port: 3000 });
 // const players = [];
-// const players: { [key: string]: string } = {};
+
+
 
 const rooms: Room[] = [];
 
@@ -45,33 +48,66 @@ wss.on('connection', function connection(ws) {
 
 
 
-function registerPlayer(ws: WebSocket, data: RegistrationData): void{
-    console.log('Received nestedData:', data);
+function registerPlayer(ws: WebSocket, data: RegistrationData): void {
+    console.log('Received registration data:', data);
 
-    const nestedData = JSON.parse(data.data);
-    const playerName = nestedData.name;
+    const { name, password } = JSON.parse(data.data);
 
-    const playerId = randomUUID();
+    console.log("players:", players)
 
-    registeredPlayerId = playerId;
-    registeredName = playerName;
+    const existingPlayer = players[name];
+    if (existingPlayer) {
+        console.log('User with the same name already exists');
 
-    const responseData = {
-        name: playerName,
-        index: playerId,
-        error: false,
-        errorText: ""
-    };
-    const responseString = JSON.stringify(responseData);
-    const registrationResponse = {
-        type: "reg",
-        data: responseString,
-        id: 0
-    };
-    ws.send(JSON.stringify(registrationResponse));
-    console.log('RegistrationResponse:', registrationResponse);
-    updateRoomState(playerName);
+        if (existingPlayer.password !== password) {
+            console.log('Incorrect password');
+            return;
+        }
+
+        registeredPlayerId = existingPlayer.id;
+        registeredName = existingPlayer.name;
+
+        const responseData = {
+            name: existingPlayer.name,
+            index: existingPlayer.id,
+            error: false,
+            errorText: ""
+        };
+        const responseString = JSON.stringify(responseData);
+        const registrationResponse = {
+            type: "reg",
+            data: responseString,
+            id: 0
+        };
+        ws.send(JSON.stringify(registrationResponse));
+        console.log('Registration response sent:', registrationResponse);
+        updateRoomState(existingPlayer.name);
+    } else {
+        const playerId = randomUUID();
+
+        registeredPlayerId = playerId;
+        registeredName = name;
+
+        players[name] = { id: playerId, name: name, password: password };
+
+        const responseData = {
+            name: name,
+            index: playerId,
+            error: false,
+            errorText: ""
+        };
+        const responseString = JSON.stringify(responseData);
+        const registrationResponse = {
+            type: "reg",
+            data: responseString,
+            id: 0
+        };
+        ws.send(JSON.stringify(registrationResponse));
+        console.log('Registration response sent:', registrationResponse);
+        updateRoomState(name);
+    }
 }
+
 
 
 function createRoom(ws: WebSocket, playerId: string): string | undefined {
@@ -116,7 +152,6 @@ function updateRoomState(creatorName: string): void {
 }
 
 
-
 // function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
 function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
 
@@ -124,7 +159,6 @@ function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
 
     const indexRoom= JSON.parse(data.data).indexRoom;
 
-    // Находим комнату по идентификатору
     const room = rooms.find(room => room.id === indexRoom);
 
     if (room) {
