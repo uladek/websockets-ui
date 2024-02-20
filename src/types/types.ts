@@ -1,6 +1,3 @@
-import { WebSocket } from 'ws';
-
-
 export interface RegistrationData {
     name: string;
     error: boolean;
@@ -24,9 +21,6 @@ export interface Room {
     creatorName: string;
 }
 
-export interface CustomWebSocket extends WebSocket {
-    playerId?: string;
-}
 
 export interface AddShipsMessage {
     type: "add_ships";

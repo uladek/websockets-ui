@@ -1,68 +1,39 @@
-
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocket } from 'ws';
 import { httpServer } from './http_server/index';
-import { AddShipsMessage, AddUserToRoomMessage, CustomWebSocket, RegistrationData, Room, Ship } from './types/types';
+import { AddShipsMessage,  AddUserToRoomMessage,  RegistrationData, Room, Ship } from './types/types';
 import { randomUUID } from 'crypto';
+import { CustomWebSocket } from './ws/customwebsocket';
+import { HTTP_PORT, players, rooms, wss } from './constants/constants';
 
-const HTTP_PORT = 8181;
 
 console.log(`Start static http server on the ${HTTP_PORT} port!`);
 httpServer.listen(HTTP_PORT);
 
-let registeredPlayerId: string;
-let registeredName: string;
-let currentRoomId: string | undefined;
-const players: { [key: string]: { id: string, name: string, password: string } } = {};
 
 
-const wss = new WebSocketServer({ port: 3000 }) as WebSocketServer & { clients: Set<CustomWebSocket> };
-
-// const wss = new WebSocketServer({ port: 3000 });
-// const players = [];
-
-
-
-const rooms: Room[] = [];
-
-// wss.on('connection', function connection(ws) {
-// // wss.on('connection', function connection(ws: CustomWebSocket) {
-
-//     ws.on('message', function incoming(message) {
-//         const messageString = message.toString();
-//         console.log('Received:', messageString);
-
-//         try {
-//             const data = JSON.parse(messageString);
-//             if (data.type === 'reg') {
-//                 registerPlayer(ws, data);
-//             } else if (data.type === 'create_room') {
-//                  createRoom(ws, registeredPlayerId);
-//             } else if (data.type === 'add_user_to_room') {
-//                 addUserToRoom(ws, data);
-//             } else if (data.type === 'add_ships') {
-//                 addShips(ws, data);
-//             }
-//         } catch (error) {
-//             console.error('Error parsing JSON:', error);
-//         }
-//     });
-// });
-
-wss.on('connection', function connection(ws) {
+wss.on('connection', function connection(ws: CustomWebSocket) {
     ws.on('message', function incoming(message) {
         const messageString = message.toString();
         console.log('Received:', messageString);
         handleMessage(ws, messageString);
     });
-});
 
-function handleMessage(ws: WebSocket, message: string): void {
+    ws.playerId = '';
+    ws.name = '';
+
+    ws.on('close', function close() {
+        ws.playerId = undefined;
+        ws.name = undefined;
+    });
+})
+
+function handleMessage(ws: CustomWebSocket, message: string): void {
     try {
         const data = JSON.parse(message);
         if (data.type === 'reg') {
             registerPlayer(ws, data);
         } else if (data.type === 'create_room') {
-            createRoom(ws, registeredPlayerId);
+            createRoom(ws);
         } else if (data.type === 'add_user_to_room') {
             addUserToRoom(ws, data);
         } else if (data.type === 'add_ships') {
@@ -74,8 +45,7 @@ function handleMessage(ws: WebSocket, message: string): void {
 }
 
 
-
-function registerPlayer(ws: WebSocket, data: RegistrationData): void {
+function registerPlayer(ws: CustomWebSocket, data: RegistrationData): void {
     console.log('Received registration data:', data);
 
     const { name, password } = JSON.parse(data.data);
@@ -84,19 +54,19 @@ function registerPlayer(ws: WebSocket, data: RegistrationData): void {
 
     const existingPlayer = players[name];
     if (existingPlayer) {
-        console.log('User with the same name already exists');
+        console.log('User with the same name already exists online');
 
         if (existingPlayer.password !== password) {
             console.log('Incorrect password');
             return;
         }
 
-        registeredPlayerId = existingPlayer.id;
-        registeredName = existingPlayer.name;
+        ws.playerId = existingPlayer.id;
+        ws.name = existingPlayer.name;
 
         const responseData = {
-            name: existingPlayer.name,
-            index: existingPlayer.id,
+            name: ws.name,
+            index: ws.playerId,
             error: false,
             errorText: ""
         };
@@ -108,12 +78,12 @@ function registerPlayer(ws: WebSocket, data: RegistrationData): void {
         };
         ws.send(JSON.stringify(registrationResponse));
         console.log('Registration response sent:', registrationResponse);
-        updateRoomState(existingPlayer.name);
+        updateRoomState();
     } else {
         const playerId = randomUUID();
 
-        registeredPlayerId = playerId;
-        registeredName = name;
+        ws.playerId = playerId;
+        ws.name = name;
 
         players[name] = { id: playerId, name: name, password: password };
 
@@ -131,31 +101,39 @@ function registerPlayer(ws: WebSocket, data: RegistrationData): void {
         };
         ws.send(JSON.stringify(registrationResponse));
         console.log('Registration response sent:', registrationResponse);
-        updateRoomState(name);
+        updateRoomState();
     }
 }
 
 
+function createRoom(ws: WebSocket): string | undefined {
+    const customWS = ws as CustomWebSocket;
 
-function createRoom(ws: WebSocket, playerId: string): string | undefined {
-    currentRoomId = randomUUID();
-    const creatorName = registeredName;
+    console.log("playerId:", customWS.playerId);
+    console.log("name:", customWS.name);
+
+    if (!customWS.playerId || !customWS.name) {
+        console.error('PlayerId or name is not set.');
+        return;
+    }
+
+    customWS.currentRoomId = randomUUID();
     const newRoom: Room = {
-        id: currentRoomId,
-        players: [playerId],
-        creatorName: creatorName
+        id: customWS.currentRoomId,
+        players: [customWS.playerId],
+        creatorName: customWS.name
     };
     rooms.push(newRoom);
     console.log("newRoom", newRoom);
-    updateRoomState(creatorName);
+    updateRoomState();
 
-    return currentRoomId;
+    return customWS.currentRoomId;
 }
 
 
-function updateRoomState(creatorName: string): void {
+function updateRoomState(): void {
+
     const singlePlayerRooms = rooms.filter(room => room.players.length === 1);
-    console.log("creatorName", creatorName);
     const formattedRooms = singlePlayerRooms.map(room => ({
         roomId: room.id,
         roomUsers: room.players.map(playerId => ({
@@ -179,73 +157,47 @@ function updateRoomState(creatorName: string): void {
 }
 
 
-// function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
+
 function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
 
-    console.log("data:", data)
+    const customWS = ws as CustomWebSocket;
 
-    const indexRoom= JSON.parse(data.data).indexRoom;
+    const { indexRoom } = JSON.parse(data.data);
 
     const room = rooms.find(room => room.id === indexRoom);
 
     if (room) {
-
-        if (room.players.includes(registeredPlayerId)) {
+        if (room.players.includes(customWS.playerId as string)) {
             console.log('User is already in the room');
             return;
         }
 
-        room.players.push(registeredPlayerId);
+        room.players.push(customWS.playerId as string);
 
         const gameId = randomUUID();
 
-        const createGameMessage = {
-            type: "create_game",
-            data: JSON.stringify({
-                idGame: gameId,
-                idPlayer: registeredPlayerId
-            }),
-            id: 0
-        };
-
-
-        // room.players.forEach(playerId => {
-            console.log(" room.players: ",  room.players)
-            // console.log(" playerId : ",  playerId )
-
-            wss.clients.forEach(client => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify(createGameMessage));
-                }
-            });
-
-            // ws.send(JSON.stringify(createGameMessage));
-            // console.log('Create game message sent:', createGameMessage);
-
-            // wss.clients.forEach(client => {
-            //     if (client.readyState === WebSocket.OPEN && (client as CustomWebSocket).playerId !== playerId) {
-            //         client.send(JSON.stringify(createGameMessage));
-            //     }
-            // });
-
-            // wss.clients.forEach(client => {
-            //     if (client.readyState === WebSocket.OPEN && (client as CustomWebSocket).playerId === playerId) {
-            //         client.send(JSON.stringify(createGameMessage));
-            //     }
-            // });
-        // });
-
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                const customClient = client as CustomWebSocket;
+                const createGameMessage = {
+                    type: "create_game",
+                    data: JSON.stringify({
+                        idGame: gameId,
+                        idPlayer: customClient.playerId
+                    }),
+                    id: 0
+                };
+                customClient.send(JSON.stringify(createGameMessage));
+            }
+        });
 
         const roomIndex = rooms.indexOf(room);
         rooms.splice(roomIndex, 1);
-        updateRoomState(registeredName);
-
-
+        updateRoomState();
     } else {
         console.error('Room not found');
     }
 }
-
 
 
 
