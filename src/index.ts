@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
 import { httpServer } from './http_server/index';
-import { AddShipsMessage,  AddUserToRoomMessage,  RegistrationData, Room, Ship } from './types/types';
+import { AddShipsMessage,  AddUserToRoomMessage,  AttackMessage,  RegistrationData, Room, Ship } from './types/types';
 import { randomUUID } from 'crypto';
 import { CustomWebSocket } from './ws/customwebsocket';
 import { HTTP_PORT, players, rooms, wss } from './constants/constants';
@@ -8,8 +8,6 @@ import { HTTP_PORT, players, rooms, wss } from './constants/constants';
 
 console.log(`Start static http server on the ${HTTP_PORT} port!`);
 httpServer.listen(HTTP_PORT);
-
-
 
 wss.on('connection', function connection(ws: CustomWebSocket) {
     ws.on('message', function incoming(message) {
@@ -38,6 +36,8 @@ function handleMessage(ws: CustomWebSocket, message: string): void {
             addUserToRoom(ws, data);
         } else if (data.type === 'add_ships') {
             addShips(ws, data);
+        }  else if (data.type === 'attack') {
+            attack(ws, data);
         }
     } catch (error) {
         console.error('Error parsing JSON:', error);
@@ -204,10 +204,8 @@ function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
 function addShips(ws: WebSocket, data: AddShipsMessage): void {
     console.log("data:", data )
     const { ships, indexPlayer } = JSON.parse(data.data);
-    // const ships = JSON.parse(data.data).ships;
 
     console.log("ships:", ships)
-
 
     if (!ships || !Array.isArray(ships) || ships.length === 0) {
         console.error('No ships data received');
@@ -231,4 +229,62 @@ function addShips(ws: WebSocket, data: AddShipsMessage): void {
     };
 
     ws.send(JSON.stringify(startGameMessage));
+    sendTurnInfo(indexPlayer);
+}
+
+
+//  interface TurnMessage {
+//     type: "turn";
+//     data:  string;
+//     id: 0;
+// }
+
+
+// interface AttackFeedbackMessage {
+//     type: "attack";
+//     data: string;
+//     id: 0;
+// }
+
+
+function attack(ws: CustomWebSocket, data: AttackMessage): void {
+    const { gameId, x, y, indexPlayer } = JSON.parse(data.data);
+    console.log("DATA", data)
+    console.log("DATA", data.data, x, y)
+
+
+    const position = { x, y };
+    const status = "shot"
+
+    const feedbackMessage = {
+        type: "attack",
+        data: JSON.stringify({
+            position,
+            currentPlayer: indexPlayer,
+            status: status
+        }),
+        id: 0
+    };
+
+    ws.send(JSON.stringify(feedbackMessage));
+    sendTurnInfo(indexPlayer);
+}
+
+
+
+function sendTurnInfo(currentPlayer: number): void {
+    const turnMessage = {
+        type: "turn",
+        data: JSON.stringify({
+            currentPlayer
+        }),
+        id: 0
+    };
+
+
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(turnMessage));
+        }
+    });
 }

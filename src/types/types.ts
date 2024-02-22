@@ -37,3 +37,9 @@ export interface Ship {
     length: number;
     type: "small" | "medium" | "large" | "huge";
 }
+
+export interface AttackMessage {
+    type: "attack";
+    data: string;
+    id: 0;
+}
