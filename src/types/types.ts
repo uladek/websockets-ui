@@ -15,10 +15,16 @@ export interface AddUserToRoomMessage {
 
 export type Player = string;
 
+// export interface Room {
+//     id: string;
+//     players: string[];
+//     creatorName: string;
+// }
 export interface Room {
     id: string;
     players: string[];
     creatorName: string;
+    ships: { [playerId: string]: Ship[] };
 }
 
 

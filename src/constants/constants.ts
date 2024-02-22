@@ -12,4 +12,3 @@ export const players: {
 export const wss = new WebSocketServer(
     { port: 3000 }) as WebSocketServer & { clients: Set<CustomWebSocket>
     };
-export const rooms: Room[] = [];
