@@ -289,11 +289,11 @@ if (!opponentId) {
     return;
 }
 
-console.log("opponentId", opponentId)
+// console.log("opponentId", opponentId)
 
 const opponentShips = playerRoom.ships[opponentId];
 
-console.log("opponentShips", opponentShips)
+// console.log("opponentShips", opponentShips)
 if (!opponentShips) {
     console.error('Opponent ships not found');
     return;
@@ -303,12 +303,24 @@ if (!opponentShips) {
 
     let status = "miss";
 
-    if (opponentShips) {
-        const hitShip = opponentShips.find(ship => ship.position.x === x && ship.position.y === y);
-        if (hitShip) {
-            status = "shot";
+    // if (opponentShips) {
+    //     const hitShip = opponentShips.find(ship => ship.position.x === x && ship.position.y === y);
+    //     if (hitShip) {
+    //         status = "shot";
+    //     }
+    // }
+
+    opponentShips.forEach(ship => {
+        if (ship.direction) {
+            if (ship.position.x === x && y >= ship.position.y && y < ship.position.y + ship.length) {
+                status = "shot";
+            }
+        } else {
+            if (ship.position.y === y && x >= ship.position.x && x < ship.position.x + ship.length) {
+                status = "shot";
+            }
         }
-    }
+    });
 
     const feedbackMessage = {
         type: "attack",
@@ -350,7 +362,7 @@ function sendTurnInfo(ws: WebSocket): void {
         console.error('Room not found for player');
         return;
     }
-
+console.log("!!!! room.nextPlayerIndex", room.nextPlayerIndex)
     const turnMessage = {
         type: "turn",
         data: JSON.stringify({
