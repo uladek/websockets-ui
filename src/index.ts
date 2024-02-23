@@ -3,7 +3,7 @@ import { httpServer } from './http_server/index';
 import { AddShipsMessage,  AddUserToRoomMessage,  AttackMessage,  GameState,  RegistrationData, Room, Ship } from './types/types';
 import { randomUUID } from 'crypto';
 import { CustomWebSocket } from './ws/customwebsocket';
-import { HTTP_PORT, players, wss } from './constants/constants';
+import { HTTP_PORT, players, usersCreatingRooms, wss } from './constants/constants';
 
 
 console.log(`Start static http server on the ${HTTP_PORT} port!`);
@@ -25,8 +25,14 @@ wss.on('connection', function connection(ws: CustomWebSocket) {
     ws.name = '';
 
     ws.on('close', function close() {
+
+        if (typeof ws.playerId !== 'undefined' && usersCreatingRooms[ws.playerId]) {
+            delete usersCreatingRooms[ws.playerId];
+        }
         ws.playerId = undefined;
         ws.name = undefined;
+
+
     });
 })
 
@@ -124,6 +130,11 @@ function createRoom(ws: WebSocket): string | undefined {
         return;
     }
 
+    if (usersCreatingRooms[customWS.playerId]) {
+        console.error('User has already created a room.');
+        return;
+    }
+
     customWS.currentRoomId = randomUUID();
 
 
@@ -144,6 +155,9 @@ function createRoom(ws: WebSocket): string | undefined {
 
     console.log("newRoom", newRoom);
     console.log("rooms", rooms);
+
+    usersCreatingRooms[customWS.playerId] = true;
+
 
     updateRoomState();
 
@@ -243,6 +257,9 @@ function addShips(ws: WebSocket, data: AddShipsMessage): void {
 
         const gameShipsPlayer1 = room.ships[room.players[0]];
         const gameShipsPlayer2 = room.ships[room.players[1]];
+        console.log("gameShipsPlayer1", gameShipsPlayer1)
+        console.log("gameShipsPlayer2", gameShipsPlayer2)
+
 
         if (!gameShipsPlayer1 || !Array.isArray(gameShipsPlayer1) ||
             !gameShipsPlayer2 || !Array.isArray(gameShipsPlayer2)) {
