@@ -19,12 +19,22 @@ export type Player = string;
 //     id: string;
 //     players: string[];
 //     creatorName: string;
+//     ships: { [playerId: string]: Ship[] };
 // }
+
+export enum GameState {
+    WaitingForPlayers = 'waiting_for_players',
+    PlacingShips = 'placing_ships',
+    InProgress = 'in_progress'
+}
+
 export interface Room {
     id: string;
     players: string[];
     creatorName: string;
     ships: { [playerId: string]: Ship[] };
+    state: GameState;
+    creatorId: string;
 }
 
 

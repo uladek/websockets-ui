@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
 import { httpServer } from './http_server/index';
-import { AddShipsMessage,  AddUserToRoomMessage,  AttackMessage,  RegistrationData, Room, Ship } from './types/types';
+import { AddShipsMessage,  AddUserToRoomMessage,  AttackMessage,  GameState,  RegistrationData, Room, Ship } from './types/types';
 import { randomUUID } from 'crypto';
 import { CustomWebSocket } from './ws/customwebsocket';
 import { HTTP_PORT, players, wss } from './constants/constants';
@@ -125,19 +125,21 @@ function createRoom(ws: WebSocket): string | undefined {
     }
 
     customWS.currentRoomId = randomUUID();
+
+
     // const newRoom: Room = {
     //     id: customWS.currentRoomId,
     //     players: [customWS.playerId],
-    //     creatorName: customWS.name
+    //     creatorName: customWS.name,
+    //     ships: {}
     // };
-
-
-
     const newRoom: Room = {
         id: customWS.currentRoomId,
         players: [customWS.playerId],
         creatorName: customWS.name,
-        ships: {}
+        ships: {},
+        state: GameState.PlacingShips,
+        creatorId: customWS.playerId,
     };
 
 
@@ -226,8 +228,7 @@ function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
 
 function addShips(ws: WebSocket, data: AddShipsMessage): void {
 
-    const customWS = ws as CustomWebSocket;
-
+    // const customWS = ws as CustomWebSocket;
     console.log("roons addShis2", rooms)
 
     console.log("data:", data )
@@ -237,9 +238,6 @@ function addShips(ws: WebSocket, data: AddShipsMessage): void {
 
     const room = rooms.find(room => room.players.includes(indexPlayer));
 
-    // console.log("room 1:", room);
-    // console.log("ships:", ships);
-
     if (!room) {
         console.error('Room not found');
         return;
@@ -247,35 +245,29 @@ function addShips(ws: WebSocket, data: AddShipsMessage): void {
 
     room.ships[indexPlayer] = ships;
 
-//
-    console.log("SHIPS:", ships)
+     const allShipsPlaced = rooms.every(room => room.ships[room.players[0]] && room.ships[room.players[1]]);
 
+     if (allShipsPlaced) {
+         room.state = GameState.InProgress;
 
-    if (!ships || !Array.isArray(ships) || ships.length === 0) {
-        console.error('No ships data received');
-        return;
-    }
+         const roomCreator = rooms.find(room => room.creatorId === room.players[0]);
 
+         const currentPlayerIndex = roomCreator ? 0 : 1;
 
-
-    const gameShips = ships.map((ship: Ship) => ({
-        position: { x: ship.position.x, y: ship.position.y },
-        direction: ship.direction,
-        length: ship.length,
-        type: ship.type
-    }));
-
-    const startGameMessage = {
-        type: "start_game",
-        data: JSON.stringify({
-            ships: gameShips,
-            currentPlayerIndex: customWS.playerId
-        }),
-        id: 0
-    };
-
-    ws.send(JSON.stringify(startGameMessage));
-    sendTurnInfo(ws);
+         const startGameMessage = {
+             type: "start_game",
+             data: JSON.stringify({
+                 currentPlayerIndex: currentPlayerIndex
+             }),
+             id: 0
+         };
+         wss.clients.forEach(client => {
+             if (client.readyState === WebSocket.OPEN) {
+                 client.send(JSON.stringify(startGameMessage));
+             }
+         });
+         sendTurnInfo(ws);
+     }
 }
 
 
@@ -296,7 +288,6 @@ if (!playerRoom) {
     return;
 }
 
-// Получаем идентификатор противника
 const opponentId = playerRoom.players.find(playerId => playerId !== indexPlayer);
 
 if (!opponentId) {
@@ -314,7 +305,7 @@ if (!opponentShips) {
 }
 //
     const position = { x, y };
-    // const status = "shot"
+
     let status = "miss";
 
     if (opponentShips) {
@@ -342,7 +333,6 @@ if (!opponentShips) {
     });
     sendTurnInfo(ws);
 }
-
 
 
 function sendTurnInfo(ws:WebSocket): void {
