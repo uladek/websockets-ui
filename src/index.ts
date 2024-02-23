@@ -222,59 +222,6 @@ function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
 }
 
 
-// function addShips(ws: WebSocket, data: AddShipsMessage): void {
-
-//     const customWS = ws as CustomWebSocket;
-//     console.log("roons addShis2", rooms)
-
-//     const { ships, indexPlayer } = JSON.parse(data.data);
-
-//     const room = rooms.find(room => room.players.includes(indexPlayer));
-
-//     if (!room) {
-//         console.error('Room not found');
-//         return;
-//     }
-
-//     room.ships[indexPlayer] = ships;
-
-//      const allShipsPlaced = rooms.every(room => room.ships[room.players[0]] && room.ships[room.players[1]]);
-
-//      if (allShipsPlaced) {
-//          room.state = GameState.InProgress;
-
-//         //  const roomCreator = rooms.find(room => room.creatorId === room.players[0]);
-//         //  console.log('roomCreator', roomCreator)
-
-//         //  const currentPlayerIndex = roomCreator ? 0 : 1;
-//         //  console.log('currentPlayerIndex' , roomCreator)
-
-
-
-//          const roomCreator = rooms.find(room => room.creatorId === room.players[0]);
-//          console.log('roomCreator', roomCreator)
-
-//          const currentPlayerIndex = roomCreator ? room.players.indexOf(roomCreator.playerId) : 1;
-//          console.log('currentPlayerIndex', currentPlayerIndex)
-
-
-//          const startGameMessage = {
-//              type: "start_game",
-//              data: JSON.stringify({
-//                  currentPlayerIndex: currentPlayerIndex
-//              }),
-//              id: 0
-//          };
-//          wss.clients.forEach(client => {
-//              if (client.readyState === WebSocket.OPEN) {
-//                  client.send(JSON.stringify(startGameMessage));
-//              }
-//          });
-//         //  room.nextPlayerIndex =
-//          sendTurnInfo(ws, indexPlayer);
-//      }
-// }
-
 
 function addShips(ws: WebSocket, data: AddShipsMessage): void {
     const customWS = ws as CustomWebSocket;
@@ -316,25 +263,11 @@ function addShips(ws: WebSocket, data: AddShipsMessage): void {
             client.send(JSON.stringify(startGameMessage));
         }
     });
+    room.nextPlayerIndex =  customWS.playerId
 
         sendTurnInfo(customWS);
     }
 }
-
-// function getClientByPlayerId(playerId: string): WebSocket | undefined {
-//     return wss.clients.find(client => {
-//         const customClient = client as CustomWebSocket;
-//         return customClient.playerId === playerId;
-//     });
-// }
-
-
-// function getClientByPlayerId(playerId: string): WebSocket | undefined {
-//     return wss.clients.find(client => {
-//         const customClient = client as CustomWebSocket;
-//         return customClient.playerId === playerId;
-//     });
-// }
 
 
 
@@ -394,31 +327,37 @@ if (!opponentShips) {
         }
     });
     console.log("opponentId", opponentId)
-
     console.log("indexPlayer", indexPlayer)
     console.log("STATUS", status)
+
     if (status === "miss") {
-        sendTurnInfo(ws);
+        // sendTurnInfo(ws);
+        playerRoom.nextPlayerIndex =  opponentId ;
     } else {
-        sendTurnInfo(ws);
+        playerRoom.nextPlayerIndex =  indexPlayer;
     }
-    // sendTurnInfo(ws);
+    sendTurnInfo(ws);
 }
 
 
-function sendTurnInfo(ws:WebSocket): void {
+
+function sendTurnInfo(ws: WebSocket): void {
     const customWS = ws as CustomWebSocket;
-    // currentPlayerIndex = customWS.playerId
-    // console.log(" currentPlayerIndex TURN" ,  currentPlayerIndex)
+
+    const room = rooms.find(room => room.id === customWS.currentRoomId);
+
+    if (!room) {
+        console.error('Room not found for player');
+        return;
+    }
 
     const turnMessage = {
         type: "turn",
         data: JSON.stringify({
-            currentPlayer:  customWS.playerId
+            currentPlayer: room.nextPlayerIndex,
         }),
         id: 0
     };
-
 
     wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
