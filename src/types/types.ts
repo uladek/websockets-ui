@@ -35,7 +35,9 @@ export interface Room {
     ships: { [playerId: string]: Ship[] };
     state: GameState;
     creatorId: string;
+    nextPlayerIndex: string;
 }
+
 
 
 export interface AddShipsMessage {
