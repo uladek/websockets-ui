@@ -23,18 +23,18 @@ wss.on('connection', function connection(ws: CustomWebSocket) {
 
     ws.playerId = '';
     ws.name = '';
+    ws.currentRoomId = '';
 
     ws.on('close', function close() {
-
         if (typeof ws.playerId !== 'undefined' && usersCreatingRooms[ws.playerId]) {
             delete usersCreatingRooms[ws.playerId];
         }
         ws.playerId = undefined;
         ws.name = undefined;
 
-
     });
 })
+
 
 function handleMessage(ws: CustomWebSocket, message: string): void {
     try {
@@ -148,6 +148,7 @@ function createRoom(ws: WebSocket): string | undefined {
         nextPlayerIndex:''
     };
 
+    customWS.currentRoomId = newRoom.id;
 
 
     rooms.push(newRoom);
@@ -200,6 +201,8 @@ function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
     const { indexRoom } = JSON.parse(data.data);
 
     const roomOpen = roomsOpen.find(room => room.id === indexRoom);
+    customWS.currentRoomId = indexRoom;
+
 
     if (roomOpen) {
         if (roomOpen.players.includes(customWS.playerId as string)) {
@@ -208,6 +211,7 @@ function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
         }
 
         roomOpen.players.push(customWS.playerId as string);
+
 
         const gameId = randomUUID();
 
@@ -294,6 +298,7 @@ function attack(ws: CustomWebSocket, data: AttackMessage): void {
 
 const playerRoom = rooms.find(room => room.players.includes(indexPlayer));
 
+
 if (!playerRoom) {
     console.error('Player room not found');
     return;
@@ -310,22 +315,14 @@ if (!opponentId) {
 
 const opponentShips = playerRoom.ships[opponentId];
 
-// console.log("opponentShips", opponentShips)
 if (!opponentShips) {
     console.error('Opponent ships not found');
     return;
 }
-//
+
     const position = { x, y };
 
     let status = "miss";
-
-    // if (opponentShips) {
-    //     const hitShip = opponentShips.find(ship => ship.position.x === x && ship.position.y === y);
-    //     if (hitShip) {
-    //         status = "shot";
-    //     }
-    // }
 
     opponentShips.forEach(ship => {
         if (ship.direction) {
@@ -360,20 +357,25 @@ if (!opponentShips) {
     console.log("STATUS", status)
 
     if (status === "miss") {
-        // sendTurnInfo(ws);
         playerRoom.nextPlayerIndex =  opponentId ;
     } else {
         playerRoom.nextPlayerIndex =  indexPlayer;
     }
     sendTurnInfo(ws);
+    updateRoomState();
 }
 
 
 
 function sendTurnInfo(ws: WebSocket): void {
+
     const customWS = ws as CustomWebSocket;
 
+    console.log("customWS.currentRoomId", customWS.currentRoomId)
     const room = rooms.find(room => room.id === customWS.currentRoomId);
+/// ОШИБКА после смены полльзвателя stomWS.currentRoomId undefined
+    console.log("rooms", rooms)
+    console.log("ROOM", room)
 
     if (!room) {
         console.error('Room not found for player');
