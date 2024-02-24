@@ -118,7 +118,6 @@ function registerPlayer(ws: CustomWebSocket, data: RegistrationData): void {
 
 
 function createRoom(ws: WebSocket): string | undefined {
-    // function createRoom(ws: WebSocket): { roomId: string, rooms: Room[] } | undefined {
 
     const customWS = ws as CustomWebSocket;
 
@@ -136,7 +135,6 @@ function createRoom(ws: WebSocket): string | undefined {
     }
 
     customWS.currentRoomId = randomUUID();
-
 
     const newRoom: Room = {
         id: customWS.currentRoomId,
@@ -302,6 +300,13 @@ const playerRoom = rooms.find(room => room.players.includes(indexPlayer));
 if (!playerRoom) {
     console.error('Player room not found');
     return;
+
+}
+
+
+if (playerRoom.nextPlayerIndex !== indexPlayer) {
+    console.error('It is not your turn to attack');
+    return;
 }
 
 const opponentId = playerRoom.players.find(playerId => playerId !== indexPlayer);
@@ -311,7 +316,6 @@ if (!opponentId) {
     return;
 }
 
-// console.log("opponentId", opponentId)
 
 const opponentShips = playerRoom.ships[opponentId];
 
@@ -346,7 +350,6 @@ if (!opponentShips) {
         id: 0
     };
 
-    // ws.send(JSON.stringify(feedbackMessage));
     wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(feedbackMessage));
@@ -362,7 +365,6 @@ if (!opponentShips) {
         playerRoom.nextPlayerIndex =  indexPlayer;
     }
     sendTurnInfo(ws);
-    updateRoomState();
 }
 
 
