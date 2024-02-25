@@ -15,12 +15,6 @@ export interface AddUserToRoomMessage {
 
 export type Player = string;
 
-// export interface Room {
-//     id: string;
-//     players: string[];
-//     creatorName: string;
-//     ships: { [playerId: string]: Ship[] };
-// }
 
 export enum GameState {
     WaitingForPlayers = 'waiting_for_players',
@@ -54,6 +48,7 @@ export interface Ship {
     direction: boolean;
     length: number;
     type: "small" | "medium" | "large" | "huge";
+    hits: boolean[];
 }
 
 export interface AttackMessage {

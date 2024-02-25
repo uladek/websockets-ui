@@ -1,17 +1,15 @@
 import { WebSocket } from 'ws';
 import { httpServer } from './http_server/index';
-import { AddShipsMessage,  AddUserToRoomMessage,  AttackMessage,  GameState,  RegistrationData, Room, Ship } from './types/types';
+import { AddShipsMessage,  AddUserToRoomMessage, GameState,  RegistrationData, Room, Ship } from './types/types';
 import { randomUUID } from 'crypto';
 import { CustomWebSocket } from './ws/customwebsocket';
 import { HTTP_PORT, players, usersCreatingRooms, wss } from './constants/constants';
+import { rooms, roomsOpen } from '../src/constants/constants'
+import { attack } from './handlers/attack';
 
 
 console.log(`Start static http server on the ${HTTP_PORT} port!`);
 httpServer.listen(HTTP_PORT);
-
-export const rooms: Room[] = [];
-export const roomsOpen: Room[] = [];
-
 
 
 wss.on('connection', function connection(ws: CustomWebSocket) {
@@ -250,7 +248,13 @@ function addShips(ws: WebSocket, data: AddShipsMessage): void {
         return;
     }
 
-    room.ships[indexPlayer] = ships;
+    room.ships[indexPlayer] = ships.map((ship: Ship) => ({
+        ...ship,
+        hits: new Array(ship.length).fill(false)
+    }));
+
+    // room.ships[indexPlayer] = ships;
+
 
     const allPlayersPlacedShips = room.players.every(playerId => room.ships[playerId]);
 
@@ -290,92 +294,12 @@ function addShips(ws: WebSocket, data: AddShipsMessage): void {
 
 
 
-function attack(ws: CustomWebSocket, data: AttackMessage): void {
-    const { gameId, x, y, indexPlayer } = JSON.parse(data.data);
-    console.log("DATA", data.data, x, y)
-
-const playerRoom = rooms.find(room => room.players.includes(indexPlayer));
-
-
-if (!playerRoom) {
-    console.error('Player room not found');
-    return;
-
-}
-
-
-if (playerRoom.nextPlayerIndex !== indexPlayer) {
-    console.error('It is not your turn to attack');
-    return;
-}
-
-const opponentId = playerRoom.players.find(playerId => playerId !== indexPlayer);
-
-if (!opponentId) {
-    console.error('Opponent not found');
-    return;
-}
-
-
-const opponentShips = playerRoom.ships[opponentId];
-
-if (!opponentShips) {
-    console.error('Opponent ships not found');
-    return;
-}
-
-    const position = { x, y };
-
-    let status = "miss";
-
-    opponentShips.forEach(ship => {
-        if (ship.direction) {
-            if (ship.position.x === x && y >= ship.position.y && y < ship.position.y + ship.length) {
-                status = "shot";
-            }
-        } else {
-            if (ship.position.y === y && x >= ship.position.x && x < ship.position.x + ship.length) {
-                status = "shot";
-            }
-        }
-    });
-
-    const feedbackMessage = {
-        type: "attack",
-        data: JSON.stringify({
-            position: position,
-            currentPlayer: indexPlayer,
-            status: status
-        }),
-        id: 0
-    };
-
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(feedbackMessage));
-        }
-    });
-    console.log("opponentId", opponentId)
-    console.log("indexPlayer", indexPlayer)
-    console.log("STATUS", status)
-
-    if (status === "miss") {
-        playerRoom.nextPlayerIndex =  opponentId ;
-    } else {
-        playerRoom.nextPlayerIndex =  indexPlayer;
-    }
-    sendTurnInfo(ws);
-}
-
-
-
-function sendTurnInfo(ws: WebSocket): void {
+export function sendTurnInfo(ws: WebSocket): void {
 
     const customWS = ws as CustomWebSocket;
 
     console.log("customWS.currentRoomId", customWS.currentRoomId)
     const room = rooms.find(room => room.id === customWS.currentRoomId);
-/// ОШИБКА после смены полльзвателя stomWS.currentRoomId undefined
     console.log("rooms", rooms)
     console.log("ROOM", room)
 

@@ -14,3 +14,7 @@ export const wss = new WebSocketServer(
     };
 
 export const usersCreatingRooms: { [userId: string]: boolean } = {};
+
+
+export const rooms: Room[] = [];
+export const roomsOpen: Room[] = [];
