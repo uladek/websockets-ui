@@ -132,6 +132,11 @@ function createRoom(ws: WebSocket): string | undefined {
         return;
     }
 
+    if (roomsOpen.some(room => room.players.length === 2)) {
+        console.error('There are already 2 players in a room.');
+        return;
+    }
+
     customWS.currentRoomId = randomUUID();
 
     const newRoom: Room = {
@@ -200,14 +205,41 @@ function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
     customWS.currentRoomId = indexRoom;
 
 
+    if (!roomOpen) {
+        console.error('Room not found');
+        return;
+    }
+
+    if (roomOpen.players.length >= 2) {
+        console.error('Room is already full');
+        return;
+    }
+
+
     if (roomOpen) {
+        // if (roomOpen.players.length >= 2) {
+        //     console.error('Room is already full');
+        //     return;
+        // }
+
+
         if (roomOpen.players.includes(customWS.playerId as string)) {
             console.log('User is already in the room');
             return;
         }
 
-        roomOpen.players.push(customWS.playerId as string);
+        const userCreatedRoomIndex = roomsOpen.findIndex(room => room.creatorId === customWS.playerId);
 
+        console.log("333 userCreatedRoomIndex", userCreatedRoomIndex)
+        if (userCreatedRoomIndex !== -1) {
+            roomsOpen.splice(userCreatedRoomIndex, 1);
+            console.log('User created room removed');
+        }
+
+        // console.log('rooms addUserToRoom', rooms)
+        // console.log('roomsOpen addUserToRoom', roomsOpen)
+
+        roomOpen.players.push(customWS.playerId as string);
 
         const gameId = randomUUID();
 
@@ -236,17 +268,20 @@ function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
 }
 
 
-
 function addShips(ws: WebSocket, data: AddShipsMessage): void {
     const customWS = ws as CustomWebSocket;
     const { ships, indexPlayer } = JSON.parse(data.data);
 
-    const room = rooms.find(room => room.players.includes(indexPlayer));
+    // const room = rooms.find(room => room.players.includes(indexPlayer));
+    const room = rooms.find(room => room.id === customWS.currentRoomId);
+
 
     if (!room) {
         console.error('Room not found');
         return;
     }
+
+
 
     room.ships[indexPlayer] = ships.map((ship: Ship) => ({
         ...ship,
@@ -258,13 +293,20 @@ function addShips(ws: WebSocket, data: AddShipsMessage): void {
 
     const allPlayersPlacedShips = room.players.every(playerId => room.ships[playerId]);
 
-    if (allPlayersPlacedShips) {
+
+    // if (allPlayersPlacedShips) {
+        if (allPlayersPlacedShips && room.players.length === 2) { // Проверка, что в комнате присутствуют оба игрок
+
         room.state = GameState.InProgress;
+        console.log('rooms addShips', rooms)
+        console.log('roomsOpen addShips', roomsOpen)
+
 
         const gameShipsPlayer1 = room.ships[room.players[0]];
         const gameShipsPlayer2 = room.ships[room.players[1]];
         console.log("gameShipsPlayer1", gameShipsPlayer1)
         console.log("gameShipsPlayer2", gameShipsPlayer2)
+
 
 
         if (!gameShipsPlayer1 || !Array.isArray(gameShipsPlayer1) ||
