@@ -18,3 +18,4 @@ export const usersCreatingRooms: { [userId: string]: boolean } = {};
 
 export const rooms: Room[] = [];
 export const roomsOpen: Room[] = [];
+export const winners: { name: string, wins: number }[] = [];

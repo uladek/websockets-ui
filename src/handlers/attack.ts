@@ -4,26 +4,11 @@ import { AttackMessage } from "../types/types";
 import { CustomWebSocket } from "../ws/customwebsocket";
 import { rooms } from '../constants/constants';
 import { sendTurnInfo } from '..';
+import { finishGame } from './finish';
 
-
-function finishGame(winPlayer: number): void {
-    const finishMessage = {
-        type: "finish",
-        data: {
-            winPlayer
-        },
-        id: 0
-    };
-
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(finishMessage));
-        }
-    });
-}
 
 export function attack(ws: CustomWebSocket, data: AttackMessage): void {
-    const { gameId, x, y, indexPlayer } = JSON.parse(data.data);
+    const { x, y, indexPlayer } = JSON.parse(data.data);
     const playerRoom = rooms.find(room => room.players.includes(indexPlayer));
     if (!playerRoom) {
         console.error('Player room not found');

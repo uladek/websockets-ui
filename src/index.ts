@@ -6,6 +6,7 @@ import { CustomWebSocket } from './ws/customwebsocket';
 import { HTTP_PORT, players, usersCreatingRooms, wss } from './constants/constants';
 import { rooms, roomsOpen } from '../src/constants/constants'
 import { attack, randomAttack } from './handlers/attack';
+import { updateWinners } from './handlers/winners';
 
 
 console.log(`Start static http server on the ${HTTP_PORT} port!`);
@@ -116,6 +117,7 @@ function registerPlayer(ws: CustomWebSocket, data: RegistrationData): void {
         ws.send(JSON.stringify(registrationResponse));
         console.log('Registration response sent:', registrationResponse);
         updateRoomState();
+        updateWinners();
     }
 }
 
