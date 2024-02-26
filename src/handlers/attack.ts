@@ -3,8 +3,8 @@ import { wss } from "../constants/constants";
 import { AttackMessage } from "../types/types";
 import { CustomWebSocket } from "../ws/customwebsocket";
 import { rooms } from '../constants/constants';
-import { sendTurnInfo } from '..';
 import { finishGame } from './finish';
+import { sendTurnInfo } from './turn';
 
 
 export function attack(ws: CustomWebSocket, data: AttackMessage): void {
@@ -161,7 +161,6 @@ export function randomAttack(ws: CustomWebSocket, data: string): void {
     }
 
     let playerAttacks = gameRoom.attacksByPlayer[indexPlayer];
-    console.log("playerAttacks ", playerAttacks )
 
     if (!playerAttacks) {
         playerAttacks = [];

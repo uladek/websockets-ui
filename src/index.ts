@@ -7,11 +7,39 @@ import { HTTP_PORT, players, usersCreatingRooms, wss } from './constants/constan
 import { rooms, roomsOpen } from '../src/constants/constants'
 import { attack, randomAttack } from './handlers/attack';
 import { updateWinners } from './handlers/winners';
+import { finishGame } from './handlers/finish';
+import { sendTurnInfo } from './handlers/turn';
 
 
 console.log(`Start static http server on the ${HTTP_PORT} port!`);
 httpServer.listen(HTTP_PORT);
 
+
+// wss.on('connection', function connection(ws: CustomWebSocket) {
+//     ws.on('message', function incoming(message) {
+//         const messageString = message.toString();
+//         console.log('Received:', messageString);
+//         handleMessage(ws, messageString);
+//     });
+
+//     ws.playerId = '';
+//     ws.name = '';
+//     ws.currentRoomId = '';
+//     ws.gameId = '';
+
+
+//     ws.on('close', function close() {
+//         if (typeof ws.playerId !== 'undefined' && usersCreatingRooms[ws.playerId]) {
+//             delete usersCreatingRooms[ws.playerId];
+//         }
+//         ws.playerId = undefined;
+//         ws.name = undefined;
+
+//     });
+
+
+
+// })
 
 wss.on('connection', function connection(ws: CustomWebSocket) {
     ws.on('message', function incoming(message) {
@@ -25,16 +53,44 @@ wss.on('connection', function connection(ws: CustomWebSocket) {
     ws.currentRoomId = '';
     ws.gameId = '';
 
-
     ws.on('close', function close() {
         if (typeof ws.playerId !== 'undefined' && usersCreatingRooms[ws.playerId]) {
             delete usersCreatingRooms[ws.playerId];
         }
+
+        if (ws.playerId && ws.name) {
+            console.log(`Player ${ws.name} (ID: ${ws.playerId}) disconnected.`);
+        } else {
+            console.log('Anonymous user disconnected.');
+        }
+
+        if (ws.currentRoomId) {
+            const roomIndex = rooms.findIndex(room => room.id === ws.currentRoomId);
+            if (roomIndex !== -1) {
+                const room = rooms[roomIndex];
+                const playerIndex = room.players.indexOf(ws.playerId || '');
+                if (playerIndex !== -1) {
+                    room.players.splice(playerIndex, 1);
+                    console.log(`Player ${ws.name} (ID: ${ws.playerId}) removed from room ${ws.currentRoomId}.`);
+                    if (room.players.length === 0) {
+                        rooms.splice(roomIndex, 1);
+                        console.log(`Room ${ws.currentRoomId} removed as it became empty.`);
+                    } else {
+                        if (room.state !== GameState.InProgress && room.players.length === 1) {
+                            finishGame(room.players[0]);
+                        }
+                        updateRoomState();
+                    }
+                }
+            }
+        }
+
         ws.playerId = undefined;
         ws.name = undefined;
-
     });
-})
+
+});
+
 
 
 function handleMessage(ws: CustomWebSocket, message: string): void {
@@ -58,6 +114,8 @@ function handleMessage(ws: CustomWebSocket, message: string): void {
         console.error('Error parsing JSON:', error);
     }
 }
+
+
 
 
 function registerPlayer(ws: CustomWebSocket, data: RegistrationData): void {
@@ -285,7 +343,6 @@ function addShips(ws: WebSocket, data: AddShipsMessage): void {
     const customWS = ws as CustomWebSocket;
     const { ships, indexPlayer } = JSON.parse(data.data);
 
-    // const room = rooms.find(room => room.players.includes(indexPlayer));
     const room = rooms.find(room => room.id === customWS.currentRoomId);
 
 
@@ -294,31 +351,23 @@ function addShips(ws: WebSocket, data: AddShipsMessage): void {
         return;
     }
 
-
-
     room.ships[indexPlayer] = ships.map((ship: Ship) => ({
         ...ship,
         hits: new Array(ship.length).fill(false)
     }));
 
-    // room.ships[indexPlayer] = ships;
-
 
     const allPlayersPlacedShips = room.players.every(playerId => room.ships[playerId]);
 
 
-    // if (allPlayersPlacedShips) {
-        if (allPlayersPlacedShips && room.players.length === 2) { // Проверка, что в комнате присутствуют оба игрок
+        if (allPlayersPlacedShips && room.players.length === 2) {
 
         room.state = GameState.InProgress;
-        console.log('rooms addShips', rooms)
-        console.log('roomsOpen addShips', roomsOpen)
 
 
         const gameShipsPlayer1 = room.ships[room.players[0]];
         const gameShipsPlayer2 = room.ships[room.players[1]];
-        console.log("gameShipsPlayer1", gameShipsPlayer1)
-        console.log("gameShipsPlayer2", gameShipsPlayer2)
+
 
 
 
@@ -346,35 +395,4 @@ function addShips(ws: WebSocket, data: AddShipsMessage): void {
 
         sendTurnInfo(customWS);
     }
-}
-
-
-
-export function sendTurnInfo(ws: WebSocket): void {
-
-    const customWS = ws as CustomWebSocket;
-
-    console.log("customWS.currentRoomId", customWS.currentRoomId)
-    const room = rooms.find(room => room.id === customWS.currentRoomId);
-    console.log("rooms", rooms)
-    console.log("ROOM", room)
-
-    if (!room) {
-        console.error('Room not found for player');
-        return;
-    }
-console.log("!!!! room.nextPlayerIndex", room.nextPlayerIndex)
-    const turnMessage = {
-        type: "turn",
-        data: JSON.stringify({
-            currentPlayer: room.nextPlayerIndex,
-        }),
-        id: 0
-    };
-
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(turnMessage));
-        }
-    });
 }
