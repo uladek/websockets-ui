@@ -15,31 +15,7 @@ console.log(`Start static http server on the ${HTTP_PORT} port!`);
 httpServer.listen(HTTP_PORT);
 
 
-// wss.on('connection', function connection(ws: CustomWebSocket) {
-//     ws.on('message', function incoming(message) {
-//         const messageString = message.toString();
-//         console.log('Received:', messageString);
-//         handleMessage(ws, messageString);
-//     });
 
-//     ws.playerId = '';
-//     ws.name = '';
-//     ws.currentRoomId = '';
-//     ws.gameId = '';
-
-
-//     ws.on('close', function close() {
-//         if (typeof ws.playerId !== 'undefined' && usersCreatingRooms[ws.playerId]) {
-//             delete usersCreatingRooms[ws.playerId];
-//         }
-//         ws.playerId = undefined;
-//         ws.name = undefined;
-
-//     });
-
-
-
-// })
 
 wss.on('connection', function connection(ws: CustomWebSocket) {
     ws.on('message', function incoming(message) {
@@ -196,6 +172,12 @@ function createRoom(ws: WebSocket): string | undefined {
         console.error('User has already created a room.');
         return;
     }
+
+    if (roomsOpen.some(room => room.players.length >= 2)) {
+        console.error('There are already 2 players in a room.');
+        return;
+    }
+
 
     if (roomsOpen.some(room => room.players.length === 2)) {
         console.error('There are already 2 players in a room.');
