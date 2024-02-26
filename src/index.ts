@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import { CustomWebSocket } from './ws/customwebsocket';
 import { HTTP_PORT, players, usersCreatingRooms, wss } from './constants/constants';
 import { rooms, roomsOpen } from '../src/constants/constants'
-import { attack } from './handlers/attack';
+import { attack, randomAttack } from './handlers/attack';
 
 
 console.log(`Start static http server on the ${HTTP_PORT} port!`);
@@ -22,6 +22,8 @@ wss.on('connection', function connection(ws: CustomWebSocket) {
     ws.playerId = '';
     ws.name = '';
     ws.currentRoomId = '';
+    ws.gameId = '';
+
 
     ws.on('close', function close() {
         if (typeof ws.playerId !== 'undefined' && usersCreatingRooms[ws.playerId]) {
@@ -47,6 +49,9 @@ function handleMessage(ws: CustomWebSocket, message: string): void {
             addShips(ws, data);
         }  else if (data.type === 'attack') {
             attack(ws, data);
+        }
+        else if (data.type === 'randomAttack') {
+            randomAttack(ws, data.data);
         }
     } catch (error) {
         console.error('Error parsing JSON:', error);
@@ -146,7 +151,12 @@ function createRoom(ws: WebSocket): string | undefined {
         ships: {},
         state: GameState.PlacingShips,
         creatorId: customWS.playerId,
-        nextPlayerIndex:''
+        nextPlayerIndex:'',
+        gameId: customWS.gameId,
+        attacksByPlayer: {
+            [customWS.playerId]: [],
+        },
+
     };
 
     customWS.currentRoomId = newRoom.id;
@@ -217,10 +227,10 @@ function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
 
 
     if (roomOpen) {
-        // if (roomOpen.players.length >= 2) {
-        //     console.error('Room is already full');
-        //     return;
-        // }
+        if (roomOpen.players.length >= 2) {
+            console.error('Room is already full');
+            return;
+        }
 
 
         if (roomOpen.players.includes(customWS.playerId as string)) {
@@ -236,8 +246,6 @@ function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
             console.log('User created room removed');
         }
 
-        // console.log('rooms addUserToRoom', rooms)
-        // console.log('roomsOpen addUserToRoom', roomsOpen)
 
         roomOpen.players.push(customWS.playerId as string);
 
@@ -257,6 +265,9 @@ function addUserToRoom(ws: WebSocket, data: AddUserToRoomMessage): void {
                 customClient.send(JSON.stringify(createGameMessage));
             }
         });
+
+        roomOpen.gameId =  gameId;
+
 
         const roomIndex = roomsOpen.indexOf(roomOpen);
         roomsOpen.splice(roomIndex, 1);
@@ -328,7 +339,8 @@ function addShips(ws: WebSocket, data: AddShipsMessage): void {
             client.send(JSON.stringify(startGameMessage));
         }
     });
-    room.nextPlayerIndex =  customWS.playerId
+    room.nextPlayerIndex =  customWS.playerId;
+
 
         sendTurnInfo(customWS);
     }

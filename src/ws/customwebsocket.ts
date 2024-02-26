@@ -5,6 +5,8 @@ export class CustomWebSocket extends WebSocket {
     playerId: string | undefined;
     name: string | undefined;
     currentRoomId: string | undefined;
+    gameId: string | undefined;
+
 
 
     constructor(address: string, protocols?: string | string[]) {
@@ -12,5 +14,7 @@ export class CustomWebSocket extends WebSocket {
         this.playerId = undefined;
         this.name = undefined;
         this.currentRoomId = undefined;
+        this.gameId = undefined;
+
     }
 }

@@ -106,6 +106,11 @@ export function attack(ws: CustomWebSocket, data: AttackMessage): void {
         }
     });
 
+    // playerRoom.attacks.push({ x, y, status });
+    playerRoom.attacksByPlayer[indexPlayer].push({ x, y, status });
+
+
+
     if (status !== "killed") {
         const feedbackMessage = {
             type: "attack",
@@ -126,4 +131,93 @@ export function attack(ws: CustomWebSocket, data: AttackMessage): void {
 
     playerRoom.nextPlayerIndex = status === "miss" ? opponentId : indexPlayer;
     sendTurnInfo(ws);
+}
+
+
+// export function randomAttack(ws: CustomWebSocket, data: string): void {
+//     const { gameId } = JSON.parse(data);
+//     console.log('DATA', data);
+
+//     const gameRoom = rooms.find(room => room.gameId === gameId);
+//     console.log("gameRoom", gameRoom);
+
+//     if (!gameRoom) {
+//         console.error('Game room not found');
+//         return;
+//     }
+
+//     let x = Math.floor(Math.random() * 10);
+//     let y = Math.floor(Math.random() * 10);
+
+//     let attackExists = gameRoom.attacks.some(attack => attack.x === x && attack.y === y);
+
+//     while (attackExists) {
+//         console.log(`Attack already made at position (${x}, ${y}). Generating new coordinates...`);
+//         x = Math.floor(Math.random() * 10);
+//         y = Math.floor(Math.random() * 10);
+//         attackExists = gameRoom.attacks.some(attack => attack.x === x && attack.y === y)
+//     }
+
+//     const attackData = {
+//         gameId,
+//         x,
+//         y,
+//         indexPlayer: ws.playerId
+//     };
+
+//     attack(ws, { type: 'attack', data: JSON.stringify(attackData), id: 0 });
+// }
+
+export function randomAttack(ws: CustomWebSocket, data: string): void {
+    const { gameId, indexPlayer } = JSON.parse(data);
+    console.log('DATA', data);
+
+    // Находим игровую комнату по gameId
+    const gameRoom = rooms.find(room => room.gameId === gameId);
+    console.log("gameRoom", gameRoom);
+
+    if (!gameRoom) {
+        console.error('Game room not found');
+        return;
+    }
+
+    // Проверяем, есть ли информация об атаках в комнате для данного игрока
+    if (!gameRoom.attacksByPlayer) {
+        console.error('Attacks information not found for players in the game room');
+        return;
+    }
+
+    // Получаем список атак для данного игрока
+    let playerAttacks = gameRoom.attacksByPlayer[indexPlayer];
+    console.log("playerAttacks ", playerAttacks )
+
+    if (!playerAttacks) {
+        // Если список атак для данного игрока еще не создан, создаем его
+        playerAttacks = [];
+        gameRoom.attacksByPlayer[indexPlayer] = playerAttacks;
+    }
+
+    let x = Math.floor(Math.random() * 10);
+    let y = Math.floor(Math.random() * 10);
+
+    // Проверяем, были ли уже атаки по этим координатам для данного игрока
+    let attackExists = playerAttacks.some(attack => attack.x === x && attack.y === y);
+
+    // Если атака уже существует, выводим сообщение и повторяем генерацию координат
+    while (attackExists) {
+        console.log(`Attack already made by player ${indexPlayer} at position (${x}, ${y}). Generating new coordinates...`);
+        x = Math.floor(Math.random() * 10);
+        y = Math.floor(Math.random() * 10);
+        attackExists = playerAttacks.some(attack => attack.x === x && attack.y === y);
+    }
+
+
+    const attackData = {
+        gameId,
+        x,
+        y,
+        indexPlayer: ws.playerId
+    };
+
+    attack(ws, { type: 'attack', data: JSON.stringify(attackData), id: 0 });
 }

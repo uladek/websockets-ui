@@ -30,10 +30,15 @@ export interface Room {
     state: GameState;
     creatorId: string;
     nextPlayerIndex: string | undefined;
+    gameId: string | undefined;
+    attacksByPlayer: { [playerId: string]: Attack[] };
 }
 
-
-
+export interface Attack {
+    x: number;
+    y: number;
+    status: string;
+}
 export interface AddShipsMessage {
     type: "add_ships";
     data: string;
